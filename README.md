@@ -13,6 +13,8 @@
 ## ✨ 功能一览
 
 ### 文章管理
+- **从零创建博客向导**:没有博客仓库?点「仓库配置」里的绿色横幅,填个名字即自动创建 GitHub 仓库并写入
+  Hugo 脚手架(Stack 主题 + Actions 自动部署 + 示例文章),3 步上线
 - 连接任意 Hugo 博客 GitHub 仓库(支持 `content/posts/*.md` 单文件与 `content/post/<slug>/index.md` Page Bundle 两种结构)
 - 文章列表 / 新建 / 复制 / 删除 / 重置(恢复远端版本),本地草稿缓存
 - 内置演示数据,未连仓库也能完整体验(演示模式)
@@ -144,6 +146,7 @@ bun run start
 | 文档 | 内容 |
 |---|---|
 | [docs/hugo-blog-deploy-guide.md](docs/hugo-blog-deploy-guide.md) | **详细指南**:从零初始化空 Hugo 仓库 → 配置 GitHub Actions → GitHub Pages 上线 → 自定义域名(以 DanZai233.github.io 真实博客为实例) |
+| [docs/hugo-theme-guide.md](docs/hugo-theme-guide.md) | **主题配置详解**(Stack):外观/侧边栏/头像/导航菜单/社交链接/代码高亮/评论 giscus/自定义样式逐字段讲解 |
 | [docs/new-hugo-blog-template/](docs/new-hugo-blog-template/) | **开箱即用的空 Hugo 仓库脚手架**:hugo.yaml + Actions workflow + 示例文章,拷贝即可起步 |
 | [.env.example](.env.example) | AI 服务与端口等全部环境变量说明 |
 | [unillm-sdk](https://github.com/DanZai233/unillm-sdk) | 底层统一大模型接入包,含 Dashboard 可视化配置 |

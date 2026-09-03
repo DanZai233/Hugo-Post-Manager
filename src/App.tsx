@@ -9,6 +9,7 @@ import { ImageUploadModal } from './components/ImageUploadModal';
 import { NewPostModal } from './components/NewPostModal';
 import { ResetPostModal } from './components/ResetPostModal';
 import { WritingAssistantPanel } from './components/Assistant/WritingAssistantPanel';
+import { BlogWizardModal } from './components/BlogWizardModal';
 import { GitHubConfig, GitHubWorkflowRun, HugoPost } from './types';
 import {
   loadGitHubConfig,
@@ -54,6 +55,7 @@ export default function App() {
   const [isNewPostOpen, setIsNewPostOpen] = useState(false);
   const [isResetOpen, setIsResetOpen] = useState(false);
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
+  const [isBlogWizardOpen, setIsBlogWizardOpen] = useState(false);
   const [postToReset, setPostToReset] = useState<HugoPost | null>(null);
 
   // Toast notifications
@@ -428,6 +430,7 @@ export default function App() {
         config={config}
         onSaveConfig={handleSaveConfig}
         onResetToDemo={handleResetToDemo}
+        onOpenWizard={() => setIsBlogWizardOpen(true)}
       />
 
       <CommitDeployModal
@@ -483,6 +486,15 @@ export default function App() {
         onClose={() => setIsAssistantOpen(false)}
         post={activePost}
         onInsertContent={handleAssistantInsert}
+        onShowToast={showToast}
+      />
+
+      {/* 从零创建博客仓库向导 */}
+      <BlogWizardModal
+        isOpen={isBlogWizardOpen}
+        onClose={() => setIsBlogWizardOpen(false)}
+        token={config.token}
+        onSaveConfig={handleSaveConfig}
         onShowToast={showToast}
       />
     </div>

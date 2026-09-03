@@ -8,6 +8,13 @@
 >
 > 仓库里还附带一份**开箱即用的空仓库脚手架**,见 `docs/new-hugo-blog-template/`,
 > 拷贝过去改改就能推上 GitHub 开始写博客。
+>
+> 🚀 **不想敲命令?** Hugo Post Manager 内置「从零创建博客仓库」向导(右上角「仓库配置」→ 绿色横幅按钮):
+> 填个仓库名,自动帮你建 GitHub 仓库、写入 Hugo 配置 + Stack 主题引用 + Actions 自动部署工作流,
+> 完成后按提示到 Settings → Pages 把 Source 设为 GitHub Actions 即可上线。
+>
+> 🎨 **主题怎么配?** 外观/头像/导航/评论等全部设置项,见配套文档
+> [hugo-theme-guide.md](hugo-theme-guide.md)(以 Stack 主题为例,逐字段讲解,含真实实例配置)。
 
 ---
 

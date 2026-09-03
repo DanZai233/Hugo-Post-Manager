@@ -473,3 +473,161 @@ export async function uploadStaticAsset(
     sha: data.content?.sha || '',
   };
 }
+
+/* ================================================================== */
+/* 博客仓库初始化向导(创建仓库 + 写入 Hugo 脚手架)                        */
+/* ================================================================== */
+
+/** 获取 Token 对应的 GitHub 账号(用于计算默认仓库名与站点域名) */
+export async function getAuthenticatedUser(token: string): Promise<{ login: string; name: string }> {
+  const res = await fetch('https://api.github.com/user', { headers: getHeaders(token) });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `获取账号信息失败 (HTTP ${res.status})`);
+  }
+  const data = await res.json();
+  return { login: data.login, name: data.name || data.login };
+}
+
+export interface CreateRepoOptions {
+  token: string;
+  name: string;
+  description?: string;
+  isPrivate?: boolean;
+}
+
+export interface CreatedRepoInfo {
+  fullName: string;
+  owner: string;
+  repo: string;
+  defaultBranch: string;
+  htmlUrl: string;
+}
+
+/** 在用户账号下创建仓库(带 repo 权限的 Token 即可) */
+export async function createGitHubRepository(opts: CreateRepoOptions): Promise<CreatedRepoInfo> {
+  const token = opts.token.trim();
+  if (!token) {
+    throw new Error('请先在「仓库配置」中填写带 repo 权限的 GitHub Token。');
+  }
+  const res = await fetch('https://api.github.com/user/repos', {
+    method: 'POST',
+    headers: {
+      ...getHeaders(token),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      name: opts.name.trim(),
+      description: opts.description?.trim() || '',
+      private: Boolean(opts.isPrivate),
+      auto_init: false,
+      has_issues: true,
+      has_wiki: false,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    let msg = err.message || `创建仓库失败 (HTTP ${res.status})`;
+    if (res.status === 422 && /already exists/i.test(String(err.message))) {
+      msg = `仓库 ${opts.name} 已存在,请换一个名字。`;
+    } else if (res.status === 401) {
+      msg = 'Token 无效或已过期,请重新生成并配置。';
+    }
+    throw new Error(msg);
+  }
+
+  const data = await res.json();
+  return {
+    fullName: data.full_name,
+    owner: data.owner?.login,
+    repo: data.name,
+    defaultBranch: data.default_branch || 'main',
+    htmlUrl: data.html_url,
+  };
+}
+
+/**
+ * 通过 Git Data API 以单个 commit 把脚手架文件写入新仓库(空仓库无 parent)。
+ */
+export async function commitFilesToRepository(
+  config: GitHubConfig,
+  files: { path: string; content: string }[],
+  commitMessage?: string
+): Promise<void> {
+  if (!config.token || !config.owner || !config.repo) {
+    throw new Error('缺少 Token / Owner / Repo 配置。');
+  }
+  const branch = config.branch || 'main';
+  const headers = {
+    ...getHeaders(config.token),
+    'Content-Type': 'application/json',
+  };
+  const base = `https://api.github.com/repos/${config.owner}/${config.repo}`;
+
+  // 1. 为每个文件创建 blob
+  const blobs: { path: string; sha: string }[] = [];
+  for (const file of files) {
+    const blobRes = await fetch(`${base}/git/blobs`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        content: utf8ToBase64(file.content),
+        encoding: 'base64',
+      }),
+    });
+    if (!blobRes.ok) {
+      const err = await blobRes.json().catch(() => ({}));
+      throw new Error(`创建文件 ${file.path} 失败: ${err.message || blobRes.status}`);
+    }
+    const blobData = await blobRes.json();
+    blobs.push({ path: file.path, sha: blobData.sha });
+  }
+
+  // 2. 创建目录树
+  const treeRes = await fetch(`${base}/git/trees`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      tree: blobs.map((b) => ({
+        path: b.path,
+        mode: '100644',
+        type: 'blob',
+        sha: b.sha,
+      })),
+    }),
+  });
+  if (!treeRes.ok) {
+    const err = await treeRes.json().catch(() => ({}));
+    throw new Error(`创建目录树失败: ${err.message || treeRes.status}`);
+  }
+  const treeData = await treeRes.json();
+
+  // 3. 创建 commit(空仓库没有父提交)
+  const commitRes = await fetch(`${base}/git/commits`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      message: commitMessage || 'chore: initialize Hugo blog scaffold',
+      tree: treeData.sha,
+      parents: [],
+    }),
+  });
+  if (!commitRes.ok) {
+    const err = await commitRes.json().catch(() => ({}));
+    throw new Error(`创建提交失败: ${err.message || commitRes.status}`);
+  }
+  const commitData = await commitRes.json();
+
+  // 4. 更新分支引用(触发 push 事件,自动启动 Actions 部署)
+  const refRes = await fetch(`${base}/git/refs/heads/${branch}`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ sha: commitData.sha }),
+  });
+  if (!refRes.ok) {
+    const err = await refRes.json().catch(() => ({}));
+    const msg = refRes.status === 422 ? '仓库不是空的:本向导只支持在全新空仓库上初始化,请换一个新仓库名。' : `更新分支失败: ${err.message || refRes.status}`;
+    throw new Error(msg);
+  }
+}
