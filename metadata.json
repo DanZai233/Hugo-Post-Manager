@@ -1,0 +1,6 @@
+{
+  "name": "Hugo Post Manager",
+  "description": "A visual web client for managing Hugo blog posts with live preview, AI copywriting and taxonomy suggestions, front matter editing, and automatic GitHub Actions deployment.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
