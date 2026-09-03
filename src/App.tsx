@@ -8,6 +8,7 @@ import { ActionsMonitorModal } from './components/ActionsMonitorModal';
 import { ImageUploadModal } from './components/ImageUploadModal';
 import { NewPostModal } from './components/NewPostModal';
 import { ResetPostModal } from './components/ResetPostModal';
+import { WritingAssistantPanel } from './components/Assistant/WritingAssistantPanel';
 import { GitHubConfig, GitHubWorkflowRun, HugoPost } from './types';
 import {
   loadGitHubConfig,
@@ -52,6 +53,7 @@ export default function App() {
   const [isImageOpen, setIsImageOpen] = useState(false);
   const [isNewPostOpen, setIsNewPostOpen] = useState(false);
   const [isResetOpen, setIsResetOpen] = useState(false);
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [postToReset, setPostToReset] = useState<HugoPost | null>(null);
 
   // Toast notifications
@@ -333,6 +335,17 @@ export default function App() {
     showToast('已插入图片短代码至文章中');
   };
 
+  // Insert assistant reply into current post body
+  const handleAssistantInsert = (markdown: string) => {
+    if (!activePost) return;
+    const separator = activePost.content.trim() ? '\n\n---\n\n' : '';
+    handleUpdatePost({
+      ...activePost,
+      content: `${activePost.content}${separator}${markdown}`,
+      isModified: true,
+    });
+  };
+
   const latestWorkflowRun = workflowRuns[0] || null;
 
   return (
@@ -347,6 +360,7 @@ export default function App() {
         onOpenCommitModal={() => setIsCommitOpen(true)}
         onOpenActionsModal={() => setIsActionsOpen(true)}
         onOpenImageModal={() => setIsImageOpen(true)}
+        onOpenAssistant={() => setIsAssistantOpen(true)}
       />
 
       {/* Main Container */}
@@ -461,6 +475,15 @@ export default function App() {
         onClose={() => setIsNewPostOpen(false)}
         postsDir={config.postsDir}
         onCreate={handleCreatePost}
+      />
+
+      {/* AI 写作助手(右侧抽屉) */}
+      <WritingAssistantPanel
+        isOpen={isAssistantOpen}
+        onClose={() => setIsAssistantOpen(false)}
+        post={activePost}
+        onInsertContent={handleAssistantInsert}
+        onShowToast={showToast}
       />
     </div>
   );

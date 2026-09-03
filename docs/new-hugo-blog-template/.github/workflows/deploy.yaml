@@ -1,0 +1,59 @@
+# Hugo 博客部署到 GitHub Pages(GitHub Actions)
+#
+# 方案 A:构建产物推送到 gh-pages 分支。
+# 推送 main 分支即自动触发(包括 Hugo Post Manager 的「同步并部署」)。
+# 完整图文教程见 ../../hugo-blog-deploy-guide.md(相对本仓库 docs/ 目录)。
+name: Deploy Hugo site to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      HUGO_VERSION: "0.156.0"
+    steps:
+      - name: Install Hugo CLI
+        run: |
+          wget -O ${{ runner.temp }}/hugo.tar.gz https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.tar.gz
+          tar -xzf ${{ runner.temp }}/hugo.tar.gz -C ${{ runner.temp }}
+          sudo mv ${{ runner.temp }}/hugo /usr/local/bin/hugo
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Build with Hugo
+        env:
+          HUGO_ENVIRONMENT: production
+          TZ: Asia/Shanghai
+        run: |
+          # 使用自定义域名时把 baseURL 改成你的域名(并在 static/CNAME 写入域名)
+          hugo \
+            --gc \
+            --minify \
+            --baseURL "https://<你的GitHub用户名>.github.io/"
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+          publish_branch: gh-pages

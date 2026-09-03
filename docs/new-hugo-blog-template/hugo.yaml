@@ -1,0 +1,21 @@
+# 站点基础配置 —— 把 <你的GitHub用户名> 全部替换成你的实际用户名
+baseURL: "https://<你的GitHub用户名>.github.io/"
+languageCode: "zh-cn"
+title: "我的博客"
+theme: "hugo-theme-stack"
+
+defaultContentLanguage: "zh-cn"
+hasCJKLanguage: true
+
+buildFuture: true
+
+pagination:
+  pagerSize: 10
+
+permalinks:
+  post: "/p/:slug/"
+  page: "/:slug/"
+
+# 想深挖 Stack 主题外观/评论/菜单配置?
+# 从 https://github.com/CaiJimmy/hugo-theme-stack 的 exampleSite/config/_default/
+# 拷贝 params.yaml / menu.yaml / markup.yaml / related.yaml 到本目录再按需修改。

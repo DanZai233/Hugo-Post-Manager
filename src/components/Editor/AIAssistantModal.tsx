@@ -18,6 +18,7 @@ import {
   Clock
 } from 'lucide-react';
 import { HugoFrontMatter, HugoPost } from '../../types';
+import { loadLLMConfig } from '../../services/assistantApi';
 import {
   requestFrontMatterGeneration,
   requestTitleSuggestions,
@@ -201,8 +202,12 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="font-semibold text-white text-base">Hugo AI 创作与元数据助手</h2>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-                  Gemini 3.8 Flash
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20" title="当前生效的模型服务(在「写作助手 → 模型服务」中配置)">
+                  {(() => {
+                    const llm = loadLLMConfig();
+                    const label = llm.mode === 'manual' && llm.provider ? `${llm.provider}${llm.model ? '/' + llm.model : ''}` : '服务器环境变量';
+                    return label.length > 28 ? label.slice(0, 27) + '…' : label;
+                  })()}
                 </span>
               </div>
               <p className="text-xs text-slate-400">

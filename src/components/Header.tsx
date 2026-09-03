@@ -10,7 +10,8 @@ import {
   AlertCircle,
   Image as ImageIcon,
   ExternalLink,
-  Radio
+  Radio,
+  Bot
 } from 'lucide-react';
 import { GitHubConfig, GitHubWorkflowRun, HugoPost } from '../types';
 
@@ -23,6 +24,7 @@ interface HeaderProps {
   onOpenCommitModal: () => void;
   onOpenActionsModal: () => void;
   onOpenImageModal: () => void;
+  onOpenAssistant: () => void;
   onToggleSidebar?: () => void;
   isSidebarOpen?: boolean;
 }
@@ -36,6 +38,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenCommitModal,
   onOpenActionsModal,
   onOpenImageModal,
+  onOpenAssistant,
 }) => {
   const getWorkflowStatusBadge = () => {
     if (!latestWorkflowRun) {
@@ -166,6 +169,17 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <ImageIcon className="w-4 h-4 text-slate-400" />
           <span className="hidden lg:inline text-xs font-medium">媒体资源</span>
+        </button>
+
+        {/* AI Writing Assistant */}
+        <button
+          id="btn-open-assistant"
+          onClick={onOpenAssistant}
+          className="px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 font-medium bg-gradient-to-r from-fuchsia-600/20 via-indigo-600/20 to-fuchsia-600/20 text-fuchsia-200 border border-fuchsia-500/30 hover:from-fuchsia-600/40 hover:to-indigo-600/40 hover:border-fuchsia-400/50 transition-all"
+          title="AI 写作助手:配置专属人设与模型 API Key,聊天帮你写文章、分析文风"
+        >
+          <Bot className="w-4 h-4 text-fuchsia-400" />
+          <span className="hidden lg:inline text-xs font-semibold">写作助手</span>
         </button>
 
         {/* GitHub Settings */}
