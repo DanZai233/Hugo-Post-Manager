@@ -130,16 +130,22 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Repository status badge */}
+        {/* Repository status badge(点击打开博客仓库) */}
         <div className="hidden md:flex items-center ml-2 pl-4 border-l border-slate-800 gap-2">
           {config.isConfigured && !config.useMock ? (
-            <div className="flex items-center gap-2 text-xs text-slate-300 bg-slate-900/90 px-3 py-1.5 rounded-lg border border-slate-800 font-mono shadow-xs">
+            <a
+              href={`https://github.com/${config.owner}/${config.repo}`}
+              target="_blank"
+              rel="noreferrer"
+              title={`打开博客仓库 ${config.owner}/${config.repo}`}
+              className="flex items-center gap-2 text-xs text-slate-300 bg-slate-900/90 px-3 py-1.5 rounded-lg border border-slate-800 font-mono shadow-xs hover:border-indigo-500/50 hover:bg-slate-800/80 transition-all"
+            >
               <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
               <Github className="w-3.5 h-3.5 text-slate-400" />
               <span className="font-medium text-slate-200">{config.owner}/{config.repo}</span>
               <span className="text-slate-600">/</span>
               <span className="text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded text-[11px] font-semibold">{config.branch}</span>
-            </div>
+            </a>
           ) : (
             <div className="flex items-center gap-2 text-xs text-amber-300 bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20 font-medium">
               <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
@@ -181,6 +187,19 @@ export const Header: React.FC<HeaderProps> = ({
           <Bot className="w-4 h-4 text-fuchsia-400" />
           <span className="hidden lg:inline text-xs font-semibold">写作助手</span>
         </button>
+
+        {/* 本应用源码与教程(GitHub) */}
+        <a
+          id="btn-github-repo-link"
+          href="https://github.com/DanZai233/Hugo-Post-Manager"
+          target="_blank"
+          rel="noreferrer"
+          className="px-3 py-1.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors text-xs flex items-center gap-1.5 border border-transparent hover:border-slate-700"
+          title="打开 Hugo Post Manager 源码仓库(内含建站/部署/主题教程 docs/)"
+        >
+          <Github className="w-4 h-4 text-slate-400" />
+          <span className="hidden lg:inline text-xs font-medium">源码/教程</span>
+        </a>
 
         {/* GitHub Settings */}
         <button
