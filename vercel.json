@@ -7,7 +7,7 @@
     { "source": "/api/(.*)", "destination": "/api" }
   ],
   "functions": {
-    "api/index.ts": {
+    "api/index.cjs": {
       "maxDuration": 60,
       "memory": 1024
     }
