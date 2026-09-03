@@ -23,6 +23,7 @@ import {
   ListChecks,
   SpellCheck,
   ChevronRight,
+  Key,
 } from 'lucide-react';
 import { HugoPost } from '../../types';
 import {
@@ -127,6 +128,7 @@ export const WritingAssistantPanel: React.FC<WritingAssistantPanelProps> = ({
   const [configured, setConfigured] = useState<boolean>(() => hasSavedPersona());
   const [llmConfig, setLlmConfig] = useState<AssistantLLMConfig>(() => loadLLMConfig());
   const [isSetupOpen, setIsSetupOpen] = useState(false);
+  const [setupInitialTab, setSetupInitialTab] = useState<'persona' | 'model'>('persona');
 
   const [history, setHistory] = useState<AssistantChatMessage[]>(() => loadChatHistory());
   const [streaming, setStreaming] = useState<{ content: string } | null>(null);
@@ -189,6 +191,12 @@ export const WritingAssistantPanel: React.FC<WritingAssistantPanelProps> = ({
     setConfigured(true);
     setLlmConfig(llm);
     saveLLMConfig(llm);
+  };
+
+  /** 打开设置弹窗并定位到指定标签('model' = 厂商与 API Key 配置) */
+  const openSetup = (tab: 'persona' | 'model' = 'persona') => {
+    setSetupInitialTab(tab);
+    setIsSetupOpen(true);
   };
 
   const finalizeStreaming = (text: string) => {
@@ -344,9 +352,14 @@ export const WritingAssistantPanel: React.FC<WritingAssistantPanelProps> = ({
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-white text-sm truncate">{displayName}</span>
                 {configured && (
-                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-400 truncate max-w-[110px]">
-                    {modelStatus}
-                  </span>
+                  <button
+                    onClick={() => openSetup('model')}
+                    title="点击配置模型厂商与 API Key(当前:环境变量或手动配置)"
+                    className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-indigo-300 hover:border-indigo-500/60 hover:text-indigo-200 truncate max-w-[130px] cursor-pointer transition-colors flex items-center gap-1"
+                  >
+                    <Key className="w-2.5 h-2.5 shrink-0" />
+                    <span className="truncate">{modelStatus}</span>
+                  </button>
                 )}
               </div>
               <p className="text-[10px] text-slate-500 truncate">
@@ -426,13 +439,20 @@ export const WritingAssistantPanel: React.FC<WritingAssistantPanelProps> = ({
                   / Kimi / 通义 / GLM / Groq…),填上 API Key 就能开聊,帮你写文章、续写、润色、拟标题。
                 </p>
               </div>
-              <div className="flex items-center justify-center gap-2">
+              <div className="flex items-center justify-center gap-2 flex-wrap">
                 <button
-                  onClick={() => setIsSetupOpen(true)}
+                  onClick={() => openSetup('persona')}
                   className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-fuchsia-600 hover:from-indigo-500 hover:to-fuchsia-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/25 transition-all flex items-center gap-1.5"
                 >
                   <Settings className="w-3.5 h-3.5" />
-                  立即配置助手
+                  配置助手人设
+                </button>
+                <button
+                  onClick={() => openSetup('model')}
+                  className="px-4 py-2 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 hover:bg-amber-500/25 text-xs font-semibold transition-all flex items-center gap-1.5"
+                >
+                  <Key className="w-3.5 h-3.5" />
+                  配置模型与 API Key
                 </button>
                 <button
                   onClick={() => handleSetupSaved(DEFAULT_PERSONA, DEFAULT_LLM_CONFIG)}
@@ -569,7 +589,7 @@ export const WritingAssistantPanel: React.FC<WritingAssistantPanelProps> = ({
                 <p className="font-medium">出错了</p>
                 <p className="mt-0.5 break-all leading-relaxed">{errorMsg}</p>
                 <button
-                  onClick={() => setIsSetupOpen(true)}
+                  onClick={() => openSetup('model')}
                   className="mt-1 text-indigo-300 underline hover:text-indigo-200"
                 >
                   检查模型服务配置 →
@@ -671,6 +691,7 @@ export const WritingAssistantPanel: React.FC<WritingAssistantPanelProps> = ({
         llmConfig={llmConfig}
         onSave={handleSetupSaved}
         onShowToast={onShowToast}
+        initialTab={setupInitialTab}
       />
     </>
   );

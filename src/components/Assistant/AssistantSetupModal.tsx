@@ -41,6 +41,8 @@ interface AssistantSetupModalProps {
   llmConfig: AssistantLLMConfig;
   onSave: (persona: AssistantPersona, llmConfig: AssistantLLMConfig) => void;
   onShowToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
+  /** 打开时默认定位到哪个标签:人设 或 模型服务(API Key) */
+  initialTab?: 'persona' | 'model';
 }
 
 const PROVIDER_FALLBACKS: { id: string; label: string; needsApiKey: boolean; defaultBaseUrl: string; defaultModels: string[]; note?: string }[] = [
@@ -67,6 +69,7 @@ export const AssistantSetupModal: React.FC<AssistantSetupModalProps> = ({
   llmConfig,
   onSave,
   onShowToast,
+  initialTab = 'persona',
 }) => {
   const [tab, setTab] = useState<'persona' | 'model'>('persona');
   const [draftPersona, setDraftPersona] = useState<AssistantPersona>({ ...DEFAULT_PERSONA });
@@ -88,7 +91,7 @@ export const AssistantSetupModal: React.FC<AssistantSetupModalProps> = ({
     if (isOpen) {
       setDraftPersona({ ...DEFAULT_PERSONA, ...persona });
       setDraftLLM({ ...DEFAULT_LLM_CONFIG, ...llmConfig });
-      setTab('persona');
+      setTab(initialTab === 'model' ? 'model' : 'persona');
       setTestResult(null);
       setAvailableModels([]);
       setModelsSource('');
@@ -98,17 +101,24 @@ export const AssistantSetupModal: React.FC<AssistantSetupModalProps> = ({
         .then((r) => {
           setProviders(r.providers);
           setEnvInfo(r.env);
+          // 服务器端没有任何可用 Key 时,自动切到「手动填写」模式,
+          // 让厂商与 API Key 输入框直接可见(否则用户看不到在哪配置)
+          if (r.env.keysPresent.length === 0 && !r.env.autoProvider) {
+            setDraftLLM((prev) => (prev.mode === 'env' && !prev.provider ? { ...prev, mode: 'manual' } : prev));
+          }
         })
         .catch((e) => console.warn('Failed to fetch providers', e))
         .finally(() => setLoadingProviders(false));
     }
-  }, [isOpen, persona, llmConfig]);
+  }, [isOpen, persona, llmConfig, initialTab]);
 
   if (!isOpen) return null;
 
   const providerList: ProviderOption[] = providers.length > 0 ? providers : (PROVIDER_FALLBACKS as unknown as ProviderOption[]);
   const providerMeta = providerList.find((p) => p.id === draftLLM.provider);
   const manual = draftLLM.mode === 'manual';
+  /** 服务器端没有探测到任何可用 Key(如刚部署到 Vercel 还没配环境变量) */
+  const envEmpty = !loadingProviders && envInfo.keysPresent.length === 0 && !envInfo.autoProvider;
 
   /** 从当前草稿构建测试/拉模型的临时 modelConfig */
   const tempModelConfig = (): ModelConfigPayload => {
@@ -351,31 +361,52 @@ HPM_AI_MODEL=deepseek-chat
               </div>
 
               {!manual && (
-                <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-3.5 space-y-2 animate-fade-in">
-                  <p className="text-emerald-300 font-medium flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4" />
-                    Key 由服务器统一管理,所有 AI 功能共用
-                  </p>
-                  <p className="text-slate-400 leading-relaxed">
-                    将厂商 Key 配置在服务器 .env(本机开发即项目根目录 .env),支持 HPM_AI_* 前缀、UNILLM_* 通用变量或各厂商专用变量(如
-                    DEEPSEEK_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY),无需修改代码即可切换厂商。
-                  </p>
-                  <div className="flex flex-wrap gap-1.5 items-center text-[10px]">
-                    <span className="text-slate-500">服务器环境探测:</span>
-                    {envInfo.autoProvider ? (
-                      <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-mono">
-                        自动识别厂商:{envInfo.autoProvider}
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-500">未探测到厂商 Key</span>
-                    )}
-                    {envInfo.keysPresent.map((k) => (
-                      <span key={k} className="px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-400 font-mono">
-                        {k} ✓
-                      </span>
-                    ))}
+                <div className="space-y-2 animate-fade-in">
+                  {envEmpty && (
+                    <div className="bg-amber-500/10 border border-amber-500/40 rounded-xl p-3.5 space-y-2 animate-fade-in">
+                      <p className="text-amber-300 font-medium flex items-center gap-1.5 text-xs">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        服务器端还没有配置任何 AI Key(如刚部署到 Vercel,还没填环境变量)
+                      </p>
+                      <p className="text-amber-200/70 text-[11px] leading-relaxed">
+                        现在有两条路:① 在下方切到「手动填写 API Key」,直接在本页选厂商并粘贴 Key,存进浏览器即可用;
+                        ② 到 Vercel 项目 Settings → Environment Variables 配置后 Redeploy。个人使用推荐第 ① 种,马上就能聊。
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setDraftLLM((prev) => ({ ...prev, mode: 'manual' }))}
+                        className="px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/50 text-amber-200 hover:bg-amber-500/30 text-xs font-medium transition-colors"
+                      >
+                        切换到手动填写 API Key →
+                      </button>
+                    </div>
+                  )}
+                  <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-3.5 space-y-2">
+                    <p className="text-emerald-300 font-medium flex items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4" />
+                      Key 由服务器统一管理,所有 AI 功能共用
+                    </p>
+                    <p className="text-slate-400 leading-relaxed">
+                      将厂商 Key 配置在服务器 .env(本机开发即项目根目录 .env),支持 HPM_AI_* 前缀、UNILLM_* 通用变量或各厂商专用变量(如
+                      DEEPSEEK_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY),无需修改代码即可切换厂商。
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 items-center text-[10px]">
+                      <span className="text-slate-500">服务器环境探测:</span>
+                      {envInfo.autoProvider ? (
+                        <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-mono">
+                          自动识别厂商:{envInfo.autoProvider}
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-500">未探测到厂商 Key</span>
+                      )}
+                      {envInfo.keysPresent.map((k) => (
+                        <span key={k} className="px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-400 font-mono">
+                          {k} ✓
+                        </span>
+                      ))}
+                    </div>
+                    <pre className="bg-slate-950/80 border border-slate-800 rounded-lg p-2.5 text-[10px] leading-relaxed text-slate-400 overflow-x-auto font-mono">{envBlock}</pre>
                   </div>
-                  <pre className="bg-slate-950/80 border border-slate-800 rounded-lg p-2.5 text-[10px] leading-relaxed text-slate-400 overflow-x-auto font-mono">{envBlock}</pre>
                 </div>
               )}
 
