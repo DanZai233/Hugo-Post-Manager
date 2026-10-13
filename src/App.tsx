@@ -57,6 +57,7 @@ export default function App() {
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [isBlogWizardOpen, setIsBlogWizardOpen] = useState(false);
   const [postToReset, setPostToReset] = useState<HugoPost | null>(null);
+  const [pendingImageInsert, setPendingImageInsert] = useState<{ id: number; text: string } | null>(null);
 
   // Toast notifications
   const [toast, setToast] = useState<{
@@ -111,12 +112,28 @@ export default function App() {
     try {
       const remotePosts = await fetchGitHubPosts(currentConfig);
       if (remotePosts.length > 0) {
-        setPosts(remotePosts);
-        saveCachedPosts(remotePosts);
-        if (!activePostId || !remotePosts.some((p) => p.id === activePostId)) {
-          setActivePostId(remotePosts[0].id);
-          saveActivePostId(remotePosts[0].id);
-        }
+        setPosts((currentPosts) => {
+          const localDrafts = currentPosts.filter((p) => p.isNew || p.isModified);
+          const localById = new Map(localDrafts.map((p) => [p.id, p]));
+          const merged = [
+            ...localDrafts.filter((p) => !remotePosts.some((remote) => remote.id === p.id)),
+            ...remotePosts.map((remote) => localById.get(remote.id) || remote),
+          ];
+
+          saveCachedPosts(merged);
+          setActivePostId((currentActiveId) => {
+            const nextActiveId =
+              currentActiveId && merged.some((p) => p.id === currentActiveId)
+                ? currentActiveId
+                : merged[0]?.id || null;
+            if (nextActiveId) {
+              saveActivePostId(nextActiveId);
+            }
+            return nextActiveId;
+          });
+
+          return merged;
+        });
         showToast(`成功从 ${currentConfig.owner}/${currentConfig.repo} 加载 ${remotePosts.length} 篇 Hugo 文章`);
       } else {
         showToast(`在目录 ${currentConfig.postsDir} 下未找到文章，可新建一篇。`, 'info');
@@ -127,7 +144,7 @@ export default function App() {
     } finally {
       setIsLoadingPosts(false);
     }
-  }, [activePostId]);
+  }, []);
 
   // Fetch workflow runs
   const loadWorkflowsFromRemote = useCallback(async (currentConfig: GitHubConfig) => {
@@ -327,13 +344,7 @@ export default function App() {
 
   // Insert markdown from image upload modal
   const handleInsertImageMarkdown = (text: string) => {
-    if (!activePost) return;
-    const updatedContent = `${activePost.content}\n${text}`;
-    handleUpdatePost({
-      ...activePost,
-      content: updatedContent,
-      isModified: true,
-    });
+    setPendingImageInsert({ id: Date.now(), text });
     showToast('已插入图片短代码至文章中');
   };
 
@@ -383,11 +394,14 @@ export default function App() {
         {activePost ? (
           <PostEditor
             post={activePost}
+            config={config}
             onChangePost={handleUpdatePost}
             onOpenCommitModal={() => setIsCommitOpen(true)}
             onOpenResetModal={() => handleOpenResetModal(activePost)}
             onOpenImageModal={() => setIsImageOpen(true)}
             onShowToast={showToast}
+            pendingImageInsert={pendingImageInsert}
+            onImageInsertHandled={() => setPendingImageInsert(null)}
           />
         ) : (
           <div className="flex-1 flex items-center justify-center bg-[#020617] p-8 text-center text-slate-500">

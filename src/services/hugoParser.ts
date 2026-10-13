@@ -156,10 +156,7 @@ export function processHugoShortcodesForPreview(markdown: string): string {
     const title = titleMatch ? titleMatch[1] : (captionMatch ? captionMatch[1] : '');
     const alt = altMatch ? altMatch[1] : title;
 
-    return `\n\n<figure class="my-6 text-center">
-  <img src="${src}" alt="${alt}" class="rounded-lg shadow-sm mx-auto max-h-96 object-contain" />
-  ${title ? `<figcaption class="mt-2 text-xs text-stone-500 italic">${title}</figcaption>` : ''}
-</figure>\n\n`;
+    return `\n\n![${alt || title || '图片'}](${src})${title ? `\n\n*${title}*` : ''}\n\n`;
   });
 
   // Replace {{< alert "info|warning|success|error" >}}content{{< /alert >}}

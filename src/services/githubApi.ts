@@ -42,6 +42,23 @@ const getHeaders = (token: string) => {
   return headers;
 };
 
+async function getContentSha(config: GitHubConfig, filePath: string): Promise<string | undefined> {
+  const branch = config.branch || 'main';
+  const url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${filePath}?ref=${branch}`;
+  const res = await fetch(url, { headers: getHeaders(config.token) });
+
+  if (res.status === 404) {
+    return undefined;
+  }
+
+  if (!res.ok) {
+    return undefined;
+  }
+
+  const data = await res.json().catch(() => ({}));
+  return typeof data.sha === 'string' ? data.sha : undefined;
+}
+
 export async function testGitHubConnection(config: GitHubConfig): Promise<{
   success: boolean;
   repoName?: string;
@@ -332,25 +349,36 @@ export async function savePostToGitHub(
     ? `content(posts): add "${post.frontMatter.title || post.name}"`
     : `content(posts): update "${post.frontMatter.title || post.name}"`;
 
+  const latestSha = await getContentSha(config, post.path);
+
   const body: Record<string, any> = {
     message: commitMessage || defaultMsg,
     content: contentBase64,
     branch: config.branch || 'main',
   };
 
-  if (post.sha) {
-    body.sha = post.sha;
+  if (latestSha || post.sha) {
+    body.sha = latestSha || post.sha;
   }
 
   const url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${post.path}`;
-  const res = await fetch(url, {
+  const putPost = async (requestBody: Record<string, any>) => fetch(url, {
     method: 'PUT',
     headers: {
       ...getHeaders(config.token),
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify(requestBody),
   });
+
+  let res = await putPost(body);
+
+  if (res.status === 409 || res.status === 422) {
+    const refreshedSha = await getContentSha(config, post.path);
+    if (refreshedSha && refreshedSha !== body.sha) {
+      res = await putPost({ ...body, sha: refreshedSha });
+    }
+  }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -446,11 +474,20 @@ export async function uploadStaticAsset(
   base64Data: string,
   commitMessage?: string
 ): Promise<{ downloadUrl: string; sha: string }> {
-  const body = {
+  if (!config.token || !config.token.trim()) {
+    throw new Error('上传图片需要填写具有 repo 权限的 GitHub Personal Access Token。');
+  }
+
+  const latestSha = await getContentSha(config, filePath);
+  const body: Record<string, any> = {
     message: commitMessage || `asset: upload ${filePath}`,
     content: base64Data,
     branch: config.branch || 'main',
   };
+
+  if (latestSha) {
+    body.sha = latestSha;
+  }
 
   const url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${filePath}`;
   const res = await fetch(url, {

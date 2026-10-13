@@ -15,7 +15,7 @@ import {
   BookOpen,
   Eye
 } from 'lucide-react';
-import { HugoFrontMatter } from '../../types';
+import { GitHubConfig, HugoFrontMatter } from '../../types';
 import {
   calculateReadingStats,
   extractTableOfContents,
@@ -25,15 +25,43 @@ import {
 interface HugoPreviewProps {
   frontMatter: HugoFrontMatter;
   content: string;
+  postPath?: string;
+  config?: GitHubConfig;
 }
 
-export const HugoPreview: React.FC<HugoPreviewProps> = ({ frontMatter, content }) => {
+function encodeRepoPath(path: string): string {
+  return path.split('/').map(encodeURIComponent).join('/');
+}
+
+function resolvePreviewImageSrc(src: string | undefined, postPath?: string, config?: GitHubConfig): string {
+  if (!src) return '';
+  if (/^(https?:|data:|blob:)/i.test(src)) return src;
+  if (!config || config.useMock || !config.owner || !config.repo) return src;
+
+  const branch = config.branch || 'main';
+  const cleanSrc = src.trim();
+  let repoPath = '';
+
+  if (cleanSrc.startsWith('./') || (!cleanSrc.startsWith('/') && !cleanSrc.startsWith('../'))) {
+    const postDir = postPath?.split('/').slice(0, -1).join('/') || '';
+    repoPath = `${postDir}/${cleanSrc.replace(/^\.\//, '')}`;
+  } else if (cleanSrc.startsWith('/')) {
+    repoPath = `static${cleanSrc}`;
+  } else {
+    return src;
+  }
+
+  return `https://raw.githubusercontent.com/${config.owner}/${config.repo}/${branch}/${encodeRepoPath(repoPath)}`;
+}
+
+export const HugoPreview: React.FC<HugoPreviewProps> = ({ frontMatter, content, postPath, config }) => {
   const [viewport, setViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
 
   const readingStats = useMemo(() => calculateReadingStats(content), [content]);
   const tableOfContents = useMemo(() => extractTableOfContents(content), [content]);
   const processedMarkdown = useMemo(() => processHugoShortcodesForPreview(content), [content]);
+  const resolveImageSrc = (src: string | undefined) => resolvePreviewImageSrc(src, postPath, config);
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '';
@@ -100,7 +128,7 @@ export const HugoPreview: React.FC<HugoPreviewProps> = ({ frontMatter, content }
           {frontMatter.cover?.image && (
             <div className="mb-6 -mx-6 md:-mx-10 -mt-6 md:-mt-10 overflow-hidden rounded-t-xl max-h-80 border-b border-slate-800">
               <img
-                src={frontMatter.cover.image}
+                src={resolveImageSrc(frontMatter.cover.image)}
                 alt={frontMatter.cover.alt || frontMatter.title}
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
@@ -208,6 +236,15 @@ export const HugoPreview: React.FC<HugoPreviewProps> = ({ frontMatter, content }
                 },
                 p: ({ node, ...props }) => (
                   <p className="my-3 text-slate-300 leading-relaxed" {...props} />
+                ),
+                img: ({ node, src, alt, ...props }) => (
+                  <img
+                    src={resolveImageSrc(src)}
+                    alt={alt || ''}
+                    referrerPolicy="no-referrer"
+                    className="my-5 rounded-lg border border-slate-800 max-h-96 mx-auto object-contain"
+                    {...props}
+                  />
                 ),
                 blockquote: ({ node, ...props }) => (
                   <blockquote className="border-l-4 border-indigo-500 bg-indigo-500/10 pl-4 py-2 italic text-slate-300 my-4 rounded-r-lg" {...props} />

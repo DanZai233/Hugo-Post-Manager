@@ -40,6 +40,25 @@ function extractError(err: any): string {
   return err && err.message ? err.message : 'AI 服务调用失败,请稍后重试。';
 }
 
+function stripReasoningArtifacts(text: string): string {
+  if (!text) return '';
+  let cleaned = text
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '')
+    .replace(/^\s*(思考过程|推理过程|Reasoning|Thoughts?)\s*[:：][\s\S]*?(?=\n#{1,6}\s|\n正文\s*[:：]|\n最终答案\s*[:：]|$)/i, (match) => {
+      return /(?:\n#{1,6}\s|\n正文\s*[:：]|\n最终答案\s*[:：])/.test(match) ? match.replace(/[\s\S]*?(?=\n#{1,6}\s|\n正文\s*[:：]|\n最终答案\s*[:：])/, '') : '';
+    })
+    .replace(/^\s*(正文|最终答案)\s*[:：]\s*/i, '')
+    .trim();
+
+  const fenced = cleaned.match(/^```(?:markdown|md)?\s*\n([\s\S]*?)\n```\s*$/i);
+  if (fenced) {
+    cleaned = fenced[1].trim();
+  }
+
+  return cleaned;
+}
+
 // 从请求体中提取前端下发的模型覆盖配置
 function bodyModelConfig(body: any): ClientModelConfig | undefined {
   return sanitizeClientModelConfig(body?.modelConfig);
@@ -146,14 +165,15 @@ app.post('/api/ai/polish-content', async (req, res) => {
 ${content.slice(0, 10000)}
 """
 
-请直接输出处理后的 Markdown 文本内容,不要输出任何额外的包裹说明或对话内容。`;
+请直接输出处理后的 Markdown 文本内容,不要输出任何额外的包裹说明或对话内容。
+如果模型有独立的推理/思考通道,不要把任何思考过程、推理过程、分析步骤、<think> 标签或 reasoning 内容写入最终答案。`;
 
     const result = await callLLM({
       messages: [{ role: 'user', content: prompt }],
       clientConfig: bodyModelConfig(req.body),
     });
 
-    res.json({ success: true, polishedContent: result.text });
+    res.json({ success: true, polishedContent: stripReasoningArtifacts(result.text) });
   } catch (err: any) {
     console.error('Error in polish-content:', err);
     res.status(500).json({ success: false, error: extractError(err) });

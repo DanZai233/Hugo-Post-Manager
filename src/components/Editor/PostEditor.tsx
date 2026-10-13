@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   FileText,
   Save,
@@ -15,7 +15,7 @@ import {
   GitCompare,
   RotateCcw
 } from 'lucide-react';
-import { HugoFrontMatter, HugoPost } from '../../types';
+import { GitHubConfig, HugoFrontMatter, HugoPost } from '../../types';
 import { FrontMatterPanel } from './FrontMatterPanel';
 import { MarkdownToolbar } from './MarkdownToolbar';
 import { HugoPreview } from './HugoPreview';
@@ -23,20 +23,26 @@ import { AIAssistantModal } from './AIAssistantModal';
 
 interface PostEditorProps {
   post: HugoPost;
+  config: GitHubConfig;
   onChangePost: (updated: HugoPost) => void;
   onOpenCommitModal: () => void;
   onOpenResetModal?: () => void;
   onOpenImageModal: () => void;
   onShowToast?: (message: string, type?: 'success' | 'error' | 'info') => void;
+  pendingImageInsert?: { id: number; text: string } | null;
+  onImageInsertHandled?: () => void;
 }
 
 export const PostEditor: React.FC<PostEditorProps> = ({
   post,
+  config,
   onChangePost,
   onOpenCommitModal,
   onOpenResetModal,
   onOpenImageModal,
   onShowToast,
+  pendingImageInsert,
+  onImageInsertHandled,
 }) => {
   const [viewMode, setViewMode] = useState<'split' | 'edit' | 'preview'>('split');
   const [isFrontMatterOpen, setIsFrontMatterOpen] = useState(true);
@@ -93,6 +99,29 @@ export const PostEditor: React.FC<PostEditorProps> = ({
       );
     }, 0);
   };
+
+  useEffect(() => {
+    if (!pendingImageInsert) return;
+
+    const textarea = textareaRef.current;
+    const insertText = pendingImageInsert.text;
+    const currentText = post.content;
+    const start = textarea?.selectionStart ?? currentText.length;
+    const end = textarea?.selectionEnd ?? start;
+    const prefix = start > 0 && !currentText.slice(0, start).endsWith('\n') ? '\n\n' : '';
+    const suffix = currentText.slice(end).startsWith('\n') ? '' : '\n\n';
+    const replacement = `${prefix}${insertText.trim()}${suffix}`;
+    const newText = currentText.substring(0, start) + replacement + currentText.substring(end);
+
+    handleContentChange(newText);
+    onImageInsertHandled?.();
+
+    setTimeout(() => {
+      textarea?.focus();
+      const cursor = start + replacement.length;
+      textarea?.setSelectionRange(cursor, cursor);
+    }, 0);
+  }, [pendingImageInsert]);
 
   // Keyboard shortcut handlers
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -230,7 +259,7 @@ export const PostEditor: React.FC<PostEditorProps> = ({
         {/* Right Column: Hugo Live Preview */}
         {(viewMode === 'split' || viewMode === 'preview') && (
           <div className={`h-full ${viewMode === 'split' ? 'w-1/2' : 'w-full'}`}>
-            <HugoPreview frontMatter={post.frontMatter} content={post.content} />
+            <HugoPreview frontMatter={post.frontMatter} content={post.content} postPath={post.path} config={config} />
           </div>
         )}
       </div>
