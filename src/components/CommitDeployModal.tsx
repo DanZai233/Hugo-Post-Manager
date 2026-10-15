@@ -126,8 +126,6 @@ export const CommitDeployModal: React.FC<CommitDeployModalProps> = ({
     setCommitMessage(defaultMessage);
   }, [defaultMessage]);
 
-  if (!isOpen || !currentPreviewPost) return null;
-
   const handleCopyDiff = () => {
     const diffText = diffResult.lines
       .map((l) => {
@@ -142,11 +140,12 @@ export const CommitDeployModal: React.FC<CommitDeployModalProps> = ({
   };
 
   const handleCommit = async () => {
+    if (!currentPreviewPost) return;
     setCommitting(true);
     setCommitResult(null);
 
-    // If using mock mode or no token
-    if (config.useMock || !config.token) {
+    // Only explicitly selected demo mode may simulate a commit.
+    if (config.useMock) {
       setTimeout(() => {
         const mockSha = 'commit-' + Math.random().toString(36).substring(2, 9);
         const updatedPost: HugoPost = {
@@ -214,6 +213,8 @@ export const CommitDeployModal: React.FC<CommitDeployModalProps> = ({
 
     return diffResult.lines.filter((_, idx) => changedIndices.has(idx));
   }, [diffResult.lines, onlyChangedLines]);
+
+  if (!isOpen || !currentPreviewPost) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-3 md:p-6 animate-fade-in">
@@ -514,7 +515,7 @@ export const CommitDeployModal: React.FC<CommitDeployModalProps> = ({
               <div>
                 <p className="font-semibold text-amber-200">
                   {!config.token && config.owner && config.repo
-                    ? '未提供 GitHub Token（将以本地沙盒模拟提交）'
+                    ? '未提供 GitHub Token，无法推送远端'
                     : '当前处于演示模拟模式'}
                 </p>
                 <p className="text-[11px] text-amber-300/80 mt-0.5 leading-relaxed">
